@@ -3,129 +3,176 @@ import config from "../Config";
 
 const API_URL = config.API_URL;
 
+/* =========================================================
+   AXIOS CLIENT
+========================================================= */
 const axiosClient = axios.create({
-    baseURL: API_URL,
+  baseURL: API_URL,
+  timeout: 15000,
 });
 
-// 🔥 Attach token
-axiosClient.interceptors.request.use((req) => {
+/* =========================================================
+   REQUEST INTERCEPTOR (TOKEN)
+========================================================= */
+axiosClient.interceptors.request.use(
+  (req) => {
     const token = localStorage.getItem("auth_token");
-    if (token) req.headers.Authorization = `Bearer ${token}`;
+    if (token) {
+      req.headers.Authorization = `Bearer ${token}`;
+    }
     return req;
-});
+  },
+  (error) => Promise.reject(error)
+);
 
-const getRole = () => JSON.parse(localStorage.getItem("user"))?.role;
-const isAdmin = () => getRole() === "admin";
+/* =========================================================
+   RESPONSE INTERCEPTOR (GLOBAL ERROR)
+========================================================= */
+axiosClient.interceptors.response.use(
+  (response) => response.data,
+  (error) => {
+    const status = error.response?.status;
 
-/* =======================================================
-📌 GET ALL PATIENTS
-======================================================= */
-const getPatients = ({ page = 1, limit = 10, orderBy = "createdAt", order = "DESC", search = "" }) => {
-    return axiosClient
-        .get("/api/patients/patients", {
-            params: { page, limit, orderBy, order, search }
-        })
-        .then(res => res.data)
-        .catch(err => err.response?.data || { message: "Failed to fetch patients" });
-};
-
-const getPatientById = (id) => {
-    return axiosClient
-        .get(`/api/patients/patients/${id}`)
-        .then(res => res.data)
-        .catch(err => err.response?.data || { message: "Patient not found" });
-};
-
-const createPatient = (payload) => {
-    if (!isAdmin()) return Promise.reject({ message: "Admin Only Access ❌" });
-
-    const formData = new FormData();
-
-    Object.keys(payload).forEach((key) => {
-        if (key !== "documents") {
-            formData.append(key, payload[key]);
-        }
-    });
-
-    if (payload.documents?.length > 0) {
-        payload.documents.forEach(file => {
-            formData.append("documents", file);
-        });
+    if (status === 401) {
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("user");
+      window.location.href = "/login";
     }
 
-    return axiosClient
-        .post("/api/patients/patients", formData, {
-            headers: { "Content-Type": "multipart/form-data" }
-        })
-        .then(res => res.data)
-        .catch(err => err.response?.data || { message: "Create Failed" });
+    if (status === 403) {
+      console.error("Access denied ❌");
+    }
+
+    return Promise.reject(
+      error.response?.data || { message: "Something went wrong" }
+    );
+  }
+);
+
+/* =========================================================
+   HELPERS
+========================================================= */
+const getCurrentUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem("user")) || {};
+  } catch {
+    return {};
+  }
+};
+
+const isAdmin = () =>
+  getCurrentUser()?.role?.toLowerCase() === "admin";
+
+const adminOnly = () => {
+  if (!isAdmin()) {
+    throw new Error("Admin Only Access ❌");
+  }
+};
+
+/* =========================================================
+   PATIENT APIS
+========================================================= */
+const getPatients = async ({
+  page = 1,
+  limit = 10,
+  orderBy = "createdAt",
+  order = "DESC",
+  search = "",
+}) => {
+  return await axiosClient.get("/api/patients/patients", {
+    params: { page, limit, orderBy, order, search },
+  });
+};
+
+const getPatientById = async (id) => {
+  if (!id) throw new Error("Patient ID is required");
+  return await axiosClient.get(`/api/patients/patients/${id}`);
+};
+
+const createPatient = async (payload) => {
+  adminOnly();
+
+  const formData = new FormData();
+
+  Object.entries(payload).forEach(([key, value]) => {
+    if (key === "documents") return;
+
+    if (typeof value === "object" && value !== null) {
+      formData.append(key, JSON.stringify(value));
+    } else {
+      formData.append(key, value ?? "");
+    }
+  });
+
+  if (payload.documents?.length > 0) {
+    payload.documents.forEach((file) =>
+      formData.append("documents", file)
+    );
+  }
+
+  return await axiosClient.post(
+    "/api/patients/patients",
+    formData,
+    { headers: { "Content-Type": "multipart/form-data" } }
+  );
 };
 
 const updatePatient = async (id, payload) => {
-    if (!isAdmin()) throw new Error("Admin Only Access ❌");
+  adminOnly();
+  if (!id) throw new Error("Patient ID is required");
 
-    const formData = new FormData();
+  const formData = new FormData();
 
-    Object.keys(payload).forEach((key) => {
-        if (key === "documents") return;
+  Object.entries(payload).forEach(([key, value]) => {
+    if (key === "documents") return;
 
-        let value = payload[key];
+    // 🟢 IMPORTANT FIX (your logic preserved)
+    if (key === "opd" && value && !value.doctor) delete value.doctor;
+    if (key === "ipd" && value && !value.doctor) delete value.doctor;
 
-        if (key === "ipd" && value) {
-            if (!value.doctor) delete value.doctor; // IMPORTANT FIX
-        }
-        if (key === "opd" && value) {
-            if (!value.doctor) delete value.doctor; // IMPORTANT FIX
-        }
-
-        if (typeof value === "object" && value !== null) {
-            formData.append(key, JSON.stringify(value));
-        } else {
-            formData.append(key, value ?? "");
-        }
-    });
-
-    if (payload.documents?.length > 0) {
-        payload.documents.forEach((file) => formData.append("documents", file));
+    if (typeof value === "object" && value !== null) {
+      formData.append(key, JSON.stringify(value));
+    } else {
+      formData.append(key, value ?? "");
     }
+  });
 
-    try {
-        const res = await axiosClient.patch(
-            `/api/patients/patients/${id}`,
-            formData
-        );
-        return res.data;
-    } catch (err) {
-        throw new Error(err.response?.data?.message || "Update failed");
-    }
+  if (payload.documents?.length > 0) {
+    payload.documents.forEach((file) =>
+      formData.append("documents", file)
+    );
+  }
+
+  return await axiosClient.patch(
+    `/api/patients/patients/${id}`,
+    formData
+  );
 };
 
-
-/* =======================================================
-📌 DELETE PATIENT
-======================================================= */
 const deletePatient = async (id) => {
-    if (!isAdmin()) throw new Error("Admin Only Access ❌");
-    try {
-        const res = await axiosClient.delete(`/api/patients/patients/${id}`);
-        return res.data;
-    } catch (err) {
-        throw new Error(err.response?.data?.message || "Delete failed");
-    }
+  adminOnly();
+  if (!id) throw new Error("Patient ID is required");
+
+  return await axiosClient.delete(`/api/patients/patients/${id}`);
 };
 
+const getPatientNames = async ({ search = "" } = {}) => {
+  return await axiosClient.get(
+    "/api/patients/patients-names",
+    { params: { search } }
+  );
+};
 
-/* =======================================================
-📌 GET DOCTOR SPECIALIZATIONS (CSV BASED)
-======================================================= */
-
-
+/* =========================================================
+   EXPORT
+========================================================= */
 const patientService = {
-    getPatients,
-    getPatientById,
-    createPatient,
-    updatePatient,
-    deletePatient,
+  getPatients,
+  getPatientById,
+  createPatient,
+  updatePatient,
+  deletePatient,
+  getPatientNames,
 };
 
 export default patientService;

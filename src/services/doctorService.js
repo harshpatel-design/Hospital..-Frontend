@@ -17,88 +17,77 @@ axiosClient.interceptors.request.use((req) => {
 const getRole = () => JSON.parse(localStorage.getItem("user"))?.role;
 const isAdmin = () => getRole() === "admin";
 
-/* =======================================================
-📌 1. GET DOCTORS (NOW WITH TOKEN)
-======================================================= */
 const getDoctors = ({ page = 1, limit = 10, orderBy = "createdAt", order = "DESC", search = "" }) => {
     return axiosClient
         .get("api/doctors/doctors", {
-            params: { page, limit, orderBy, order, search }
+            params: { page, limit, orderBy, order, search },
         })
-        .then(res => res.data)
-        .catch(err => err.response?.data || { message: "Failed to fetch doctors" });
+        .then(res => res.data);
 };
-
 
 const getDoctorById = (id) => {
     return axiosClient
         .get(`api/doctors/doctors/${id}`)
-        .then(res => res.data)
-        .catch(err => err.response?.data || { message: "Doctor not found" });
+        .then(res => res.data);
 };
 
 const createDoctor = (payload) => {
-    if (!isAdmin()) return Promise.reject({ message: "Admin Only Access ❌" });
+  if (!isAdmin()) {
+    throw new Error("Admin Only Access ❌");
+  }
 
-    return axiosClient
-        .post("api/doctors/create-doctor", payload)
-        .then(res => res.data)
-        .catch(err => err.response?.data || { message: "Create Failed" });
+  return axiosClient
+    .post("api/doctors/create-doctor", payload, {
+      headers: { "Content-Type": "multipart/form-data" },
+    })
+    .then(res => res.data);
 };
 
 const updateDoctor = (id, payload) => {
     if (!isAdmin()) return Promise.reject({ message: "Admin Only Access ❌" });
-
     return axiosClient
-        .patch(`api/doctors/doctors/${id}`, payload)
+        .patch(`api/doctors/doctors/${id}`, payload, { headers: { "Content-Type": "multipart/form-data" } })
         .then(res => res.data)
-        .catch(err => err.response?.data || { message: "Update Failed" });
 };
-
 const deleteDoctor = (id) => {
-    if (!isAdmin()) return Promise.reject({ message: "Admin Only Access ❌" });
+  if (!isAdmin()) {
+    throw new Error("Admin Only Access ❌");
+  }
 
-    return axiosClient
-        .delete(`api/doctors/doctors/${id}`)
-        .then(res => res.data)
-        .catch(err => err.response?.data || { message: "Delete Failed" });
+  return axiosClient
+    .delete(`api/doctors/doctors/${id}`)
+    .then(res => res.data);
 };
 
 const getDepartments = ({ search = "", sort = "asc" } = {}) => {
-    return axiosClient
-        .get("/api/departments", {
-            params: { search, sort }
-        })
-        .then(res => res.data)
-        .catch(err => err.response?.data || { message: "Failed to load departments" });
+  return axiosClient
+    .get("/api/departments", {
+      params: { search, sort },
+    })
+    .then(res => res.data);
 };
 
 const getSpecializations = () => {
-    return axiosClient
-        .get("/api/specializations")
-        .then(res => res.data)
-        .catch(err => err.response?.data || { message: "Failed to load specializations" });
+  return axiosClient
+    .get("/api/specializations")
+    .then(res => res.data);
 };
-
 const getDegrees = ({ search = "", sort = "asc", page = 1, limit = 20 } = {}) => {
-    return axiosClient
-        .get("/api/degrees", {
-            params: { search, sort, page, limit }
-        })
-        .then(res => res.data)
-        .catch(err => err.response?.data || { message: "Failed to load degrees" });
+  return axiosClient
+    .get("/api/degrees", {
+      params: { search, sort, page, limit },
+    })
+    .then(res => res.data);
 };
 
-const getDoctorNames  = ({ search = "", sort = "asc" } = {}) => {
-    return axiosClient
-        .get("/api/doctors/names", {
-            params: { search, sort }
-        })
-        .then(res => res.data)
-        .catch(err => err.response?.data || { message: "Failed to load doctor names" });
+const getDoctorNames = ({ search = "", sort = "asc" } = {}) => {
+  return axiosClient
+    .get("/api/doctors/names", {
+      params: { search, sort },
+    })
+    .then(res => res.data);
 };
 
-/* EXPORT LIKE authService */
 const doctorService = {
     getDoctors,
     getDoctorById,

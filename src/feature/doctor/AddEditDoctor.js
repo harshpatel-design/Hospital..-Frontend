@@ -59,35 +59,52 @@ export default function AddEditDoctor() {
     };
 
     useEffect(() => {
-        if (isEdit) {
-            setLoading(true);
-            dispatch(fetchDoctorById(id))
-                .unwrap()
-                .then((res) => {
-                    const doctor = res.doctor?.doctor || res.doctor;
-                    if (!doctor) return;
+        if (!isEdit) return;
+        setLoading(true);
+        dispatch(fetchDoctorById(id))
+            .unwrap()
+            .then((res) => {
+                const doctor = res?.doctor?.doctor || res?.doctor;
+                if (!doctor) return;
+                const safeEducation = Array.isArray(doctor.education)
+                    ? doctor.education
+                    : [{ degree: "", institute: "", year: "" }];
 
-                    form.setFieldsValue({
-                        name: doctor.name,
-                        email: doctor.email,
-                        phone: doctor.phone,
-                        specialization: doctor.specialization,
-                        department: doctor.department,
-                        experience: doctor.experience,
-                        fees: doctor.fees,
-                        education: doctor.education,
-                        availability: doctor.availability,
-                    });
+                // ---------- SAFE AVAILABILITY ----------
+                const safeAvailability = {
+                    monday: doctor?.availability?.monday ?? false,
+                    tuesday: doctor?.availability?.tuesday ?? false,
+                    wednesday: doctor?.availability?.wednesday ?? false,
+                    thursday: doctor?.availability?.thursday ?? false,
+                    friday: doctor?.availability?.friday ?? false,
+                    saturday: doctor?.availability?.saturday ?? false,
+                    sunday: doctor?.availability?.sunday ?? false,
+                };
 
-                    if (doctor.image) {
-                        setPreview(buildImageUrl(doctor.image));
-                        setOldImage(doctor.image);
-                    }
-                })
-                .catch(() => message.error("Failed to load doctor"))
-                .finally(() => setLoading(false));
-        }
+                // ---------- SET FORM VALUES ----------
+                form.setFieldsValue({
+                    name: doctor.name,
+                    email: doctor.email,
+                    phone: doctor.phone,
+                    specialization: doctor.specialization,
+                    department: doctor.department,
+                    experience: doctor.experience,
+                    education: safeEducation,
+                    gender: doctor.gender || "",
+                    availability: safeAvailability,
+                });
+
+                // ---------- IMAGE PREVIEW ----------
+                if (doctor.image) {
+                    setPreview(buildImageUrl(doctor.image));
+                    setOldImage(doctor.image);
+                }
+            })
+            .catch(() => message.error("Failed to load doctor"))
+            .finally(() => setLoading(false));
     }, [isEdit, id, dispatch, form]);
+
+
 
     const fetchSpecializations = () => {
         setSpecLoading(true);
@@ -138,69 +155,68 @@ export default function AddEditDoctor() {
         reader.readAsDataURL(file);
     };
 
-    // 📌 Submit form
+
     const onFinish = async (values) => {
         try {
             setLoading(true);
             const formData = new FormData();
-
             if (imageFile) {
                 formData.append("image", imageFile);
-            } else if (isEdit && oldImage && !preview) {
-                formData.append("image", "");
             }
+            
+            // EDUCATION
+            const education = Array.isArray(values.education)
+                ? values.education.map((edu) => ({
+                    ...edu,
+                    year: Number(edu.year),
+                }))
+                : [];
 
+            // AVAILABILITY
+            const availability = values.availability || {};
+
+            // SIMPLE FIELDS
             Object.keys(values).forEach((key) => {
-                if (key === "education" || key === "availability") {
-                    formData.append(key, JSON.stringify(values[key]));
-                } else {
+                if (
+                    [
+                        "education",
+                        "availability",
+                        "image",
+                        "opd_old",
+                        "opd_new",
+                        "ipd_old",
+                        "ipd_new",
+                        "appointment_old",
+                        "appointment_new",
+                        "emergency",
+                    ].includes(key)
+                )
+                    return;
+
+                if (values[key] !== undefined && values[key] !== null) {
                     formData.append(key, values[key]);
                 }
             });
+            formData.append("education", JSON.stringify(education));
+            formData.append("availability", JSON.stringify(availability));
 
-            let result;
+            const result = isEdit
+                ? await dispatch(updateDoctor({ id, data: formData })).unwrap()
+                : await dispatch(createDoctor(formData)).unwrap();
 
-            // 🔵 UPDATE DOCTOR
-            if (isEdit) {
-                result = await dispatch(updateDoctor({ id, data: formData })).unwrap();
-
-                if (result?.doctor?.image) {
-                    setPreview(buildImageUrl(result.doctor.image));
-                }
-
-                return message.success({
-                    content: "Doctor updated successfully!",
-                    duration: 1,
-                    onClose: () => navigate("/doctor-onbording")
-                });
-            }
-
-            // 🟢 CREATE DOCTOR
-            result = await dispatch(createDoctor(formData)).unwrap();
-
-            if (result?.doctor?.image) {
-                setPreview(buildImageUrl(result.doctor.image));
-            }
-
-            return message.success({
-                content: "Doctor created successfully!",
-                duration: 1,
-                onClose: () => navigate("/doctor-onbording")
-            });
+            console.log(result);
+            message.success(
+                isEdit ? "Doctor updated successfully!" : "Doctor created successfully!"
+            );
+            navigate("/doctor-onbording");
 
         } catch (error) {
-            const backendMsg =
-                error?.response?.data?.details?.[0] ||
-                error?.response?.data?.message ||
-                error?.message ||
-                "Something went wrong!";
-
-            message.error(backendMsg);
+            message.error(error?.message || "Something went wrong");
+            console.error(error);
         } finally {
             setLoading(false);
         }
     };
-
 
     return (
         <>
@@ -210,9 +226,9 @@ export default function AddEditDoctor() {
             <Breadcrumbs
                 title={isEdit ? "Edit Doctor" : "Add New Doctor"}
                 showBack={true}
-                backTo="/doctors"
+                backTo="/doctor-onbording"
                 items={[
-                    { label: "Doctors", href: "/doctors" },
+                    { label: "Doctors", href: "/doctor-onbording" },
                     { label: isEdit ? "Edit Doctor" : "Add New Doctor" }
                 ]}
             />
@@ -262,7 +278,7 @@ export default function AddEditDoctor() {
                                     label="Email"
                                     name="email"
                                     rules={[
-                                        { required: true, message: "Email is required" },
+
                                         { type: "email", message: "Enter a valid email" },
                                     ]}
                                 >
@@ -282,6 +298,20 @@ export default function AddEditDoctor() {
                                     <Input maxLength={10} disabled={loading} />
                                 </Form.Item>
                             </Col>
+                            <Col span={8}>
+                                <Form.Item
+                                    label="Gender"
+                                    name="gender"
+                                    rules={[{ required: true, message: "Gender is required" }]}
+                                >
+                                    <Select placeholder="Select Gender" disabled={loading}>
+                                        <Select.Option value="male">Male</Select.Option>
+                                        <Select.Option value="female">Female</Select.Option>
+                                        <Select.Option value="other">Other</Select.Option>
+                                    </Select>
+                                </Form.Item>
+                            </Col>
+
                         </Row>
                     </Card>
 
@@ -353,17 +383,9 @@ export default function AddEditDoctor() {
                                 </Form.Item>
                             </Col>
 
-                            <Col span={6}>
-                                <Form.Item
-                                    name="fees"
-                                    label="Consultation Fees"
-                                    rules={[{ required: true, message: "Consultation fee is required" }]}
-                                >
-                                    <InputNumber style={{ width: "100%" }} disabled={loading} />
-                                </Form.Item>
-                            </Col>
                         </Row>
                     </Card>
+
 
                     {/* EDUCATION */}
                     <Card title="Education" className="doctor-card">

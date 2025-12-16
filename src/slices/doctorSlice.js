@@ -56,7 +56,8 @@ export const updateDoctor = createAsyncThunk(
       const res = await doctorService.updateDoctor(id, data);
       return res;
     } catch (err) {
-      return rejectWithValue(err.message || "Update failed");
+      console.log(err);
+      return rejectWithValue(err.response?.data || { message: "Update Failed" });
     }
   }
 );

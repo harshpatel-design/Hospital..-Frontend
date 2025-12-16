@@ -48,7 +48,7 @@ export default function DoctorOnbordingList() {
             {/* LOADER */}
             {loading ? <div className="loader-box"><Spin size="large" /></div> : (
 
-                <Row gutter={[20, 20]} style={{marginBottom:30}}>
+                <Row gutter={[20, 20]} style={{ marginBottom: 30 }}>
                     {doctors.map((doc) => {
                         let imageUrl = doc?.image
                             ? `${process.env.REACT_APP_API_URL}/uploads/users/${doc.image.includes(".") ? doc.image : `${doc.image}.png`}`
@@ -108,8 +108,6 @@ export default function DoctorOnbordingList() {
                                             <p><b>Phone:</b> {doc.phone}</p>
                                             <p><b>Specialization:</b> {doc.specialization} ({doc.department})</p>
                                             <p><b>Experience:</b> {doc.experience} Years</p>
-                                            <p><b>Fees:</b> <Tag className="price" color="red">₹{doc.fees}</Tag></p>
-
                                             <b>Availability:</b>
                                             <p>
                                                 {Object.keys(doc.availability ?? {})

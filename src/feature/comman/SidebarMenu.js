@@ -1,7 +1,9 @@
 import { Menu } from "antd";
 import {
     DashboardOutlined,
-    UserOutlined
+    UserOutlined,
+    CalendarOutlined,
+    AppstoreOutlined
 } from "@ant-design/icons";
 import { useNavigate, useLocation } from "react-router-dom";
 import "../../hcss.css";  // if sidebar styles exist here
@@ -19,6 +21,7 @@ export default function SidebarMenu({ collapsed }) {
     // 🔥 Menu Items with Doctors Submenu
     const menuItems = [
         { key: "/dashboard", icon: <DashboardOutlined />, label: "Dashboard" },
+
         {
             key: "doctor",
             icon: <UserOutlined />,
@@ -27,7 +30,7 @@ export default function SidebarMenu({ collapsed }) {
                 { key: "/doctor-onbording", label: "Doctor List" }
             ]
         },
-        
+
         {
             key: "recipient",
             icon: <UserOutlined />,
@@ -36,6 +39,7 @@ export default function SidebarMenu({ collapsed }) {
                 { key: "/recipient-onboarding", label: "Recipient List" }
             ]
         },
+
         {
             key: "patitent",
             icon: <UserOutlined />,
@@ -45,6 +49,26 @@ export default function SidebarMenu({ collapsed }) {
             ]
         },
 
+        {
+            key: "appointments",
+            icon: <CalendarOutlined />,
+            label: "Appointments",
+            children: [
+                { key: "/appointments", label: "All Appointments" },
+                { key: "/add-appointment", label: "New Appointment" }
+            ]
+        },
+
+        /* 🔥 NEW — SERVICE MENU ADDED */
+        {
+            key: "services",
+            icon: <AppstoreOutlined />,
+            label: "Services",
+            children: [
+                { key: "/services", label: "Service List" },
+                { key: "/add-service", label: "Add Service" }
+            ]
+        },
 
         { key: "/profile", icon: <UserOutlined />, label: "Profile" }
     ];
@@ -54,7 +78,13 @@ export default function SidebarMenu({ collapsed }) {
             theme="dark"
             mode="inline"
             selectedKeys={[location.pathname]}
-            defaultOpenKeys={[location.pathname.startsWith("/doctor") ? "doctor" : ""]}
+            defaultOpenKeys={[
+                location.pathname.startsWith("/doctor") ? "doctor" :
+                location.pathname.startsWith("/recipient") ? "recipient" :
+                location.pathname.startsWith("/patitent") ? "patitent" :
+                location.pathname.startsWith("/appointments") ? "appointments" :
+                location.pathname.startsWith("/services") ? "services" : ""
+            ]}
             items={menuItems}
             onClick={handleMenuClick}
         />

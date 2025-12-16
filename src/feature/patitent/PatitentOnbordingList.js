@@ -8,12 +8,25 @@ import {
     Tooltip,
     Popconfirm,
     message,
+    Dropdown,
+    DatePicker,
+    Checkbox,
 } from "antd";
+
+import {
+    PlusOutlined,
+    EditOutlined,
+    DeleteOutlined,
+    EyeOutlined,
+    ReloadOutlined,
+    FilterOutlined,
+} from "@ant-design/icons";
+
 import dayjs from "dayjs";
-import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from "@ant-design/icons";
 import { useDispatch, useSelector } from "react-redux";
 import Breadcrumbs from "../comman/Breadcrumbs";
-import "../../hcss.css"
+import { Link, useNavigate } from "react-router-dom";
+import "../../hcss.css";
 
 import {
     fetchPatients,
@@ -21,11 +34,24 @@ import {
     resetPatientState,
 } from "../../slices/patientSlice";
 
-import { useNavigate } from "react-router-dom";
+/* 🔥 MOVE DEFAULT COLUMNS OUTSIDE COMPONENT */
+const DEFAULT_PATIENT_COLUMNS = [
+    "name",
+    "phone",
+    "gender",
+    "caseType",
+    "address",
+    "bloodGroup",
+    "isActive",
+    "createdAt",
+];
 
 const PatientOnboardingList = () => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
+
+    const { Search } = Input;
+    const { RangePicker } = DatePicker;
 
     const {
         patients,
@@ -35,7 +61,11 @@ const PatientOnboardingList = () => {
         loading,
     } = useSelector((state) => state.patient);
 
-    const [search, setSearch] = useState("");
+    const [searchText, setSearchText] = useState("");
+    const [ordering, setOrdering] = useState("createdAt");
+    const [selectedColumns, setSelectedColumns] = useState(
+        DEFAULT_PATIENT_COLUMNS
+    );
 
     useEffect(() => {
         loadPatients();
@@ -47,298 +77,209 @@ const PatientOnboardingList = () => {
             fetchPatients({
                 page: pageValue,
                 limit: 10,
-                orderBy: "createdAt",
-                order: "DESC",
                 search: searchValue,
+                orderBy: ordering,
+                order: "DESC",
             })
         );
     };
-
-    const handleSearch = () => loadPatients(1, search);
 
     const handleDelete = (id) => {
         dispatch(deletePatient(id))
             .unwrap()
             .then(() => {
                 message.success("Deleted!");
-                loadPatients(page, search);
+                loadPatients(page, searchText);
             })
-            .catch((err) => message.error(err));
+            .catch(() => message.error("Delete failed"));
     };
 
-    const columns = [
+    /* ===================== COLUMNS ===================== */
+
+    const allColumns = [
         {
             title: "Full Name",
             key: "name",
-            dataIndex: "name",
-            width: 150,
             fixed: "left",
-            ellipsis: true,
-            sorter: (a, b) =>
-                (`${a.firstName} ${a.lastName}`).localeCompare(
-                    `${b.firstName} ${b.lastName}`
-                ),
-            render: (_, record) => (
-                <Tooltip title={`${record.firstName} ${record.lastName}`}>
-                    <span>
-                        {record.firstName} {record.lastName}
-                    </span>
+            render: (r) => (
+                <Tooltip title={`${r.firstName} ${r.lastName}`}>
+                    <span>{r.firstName} {r.lastName}</span>
                 </Tooltip>
             ),
         },
-
         {
             title: "Phone",
-            dataIndex: "phone",
             key: "phone",
-            width: 130,
-            ellipsis: true,
-            sorter: (a, b) => a.phone.localeCompare(b.phone),
-            render: (value) => (
-                <Tooltip title={value}>
-                    <span>{value}</span>
-                </Tooltip>
-            ),
+            dataIndex: "phone",
         },
-
         {
             title: "Gender",
-            dataIndex: "gender",
             key: "gender",
-            width: 100,
-            ellipsis: true,
-            sorter: (a, b) => a.gender.localeCompare(b.gender),
-            render: (value) => (
-                <Tooltip title={value?.toUpperCase()}>
-                    <Tag color={value === "male" ? "blue" : "pink"}>
-                        {value?.toUpperCase()}
-                    </Tag>
-                </Tooltip>
-            ),
+            dataIndex: "gender",
+            render: (v) => <Tag>{v?.toUpperCase()}</Tag>,
         },
-
         {
             title: "Case",
-            dataIndex: "caseType",
             key: "caseType",
-            width: 90,
-            ellipsis: true,
-            sorter: (a, b) => a.caseType.localeCompare(b.caseType),
-            render: (value) => {
-                const color =
-                    value === "ipd"
-                        ? "purple"
-                        : value === "opd"
-                            ? "green"
-                            : "orange";
-
-                return (
-                    <Tooltip title={value?.toUpperCase()}>
-                        <Tag color={color}>{value?.toUpperCase()}</Tag>
-                    </Tooltip>
-                );
-            },
+            dataIndex: "caseType",
+            render: (v) => <Tag color="blue">{v?.toUpperCase()}</Tag>,
         },
-
-        {
-            title: "Phone",
-            key: "altPhone",
-            width: 170,
-            ellipsis: true,
-            sorter: (a, b) =>
-                `${a.phone}${a.altPhone}`.localeCompare(`${b.phone}${b.altPhone}`),
-            render: (record) => {
-                const text = `${record.phone}${record.altPhone ? " / " + record.altPhone : ""}`;
-                return (
-                    <Tooltip title={text}>
-                        <span>{text}</span>
-                    </Tooltip>
-                );
-            },
-        },
-
         {
             title: "Address",
             key: "address",
-            width: 220,
-            ellipsis: true,
-            sorter: (a, b) => {
-                const addrA = `${a.address?.line1 || ""} ${a.address?.city || ""}`;
-                const addrB = `${b.address?.line1 || ""} ${b.address?.city || ""}`;
-                return addrA.localeCompare(addrB);
-            },
-            render: (record) => {
-                const a = record.address;
-                const text = `${a?.line1 || ""}, ${a?.city || ""}, ${a?.state || ""}`;
-                return (
-                    <Tooltip title={text}>
-                        <span>{text}</span>
-                    </Tooltip>
-                );
-            },
+            render: (r) =>
+                `${r.address?.line1 || ""}, ${r.address?.city || ""}`,
         },
-
         {
             title: "Blood Group",
-            dataIndex: "bloodGroup",
             key: "bloodGroup",
-            width: 120,
-            ellipsis: true,
-            sorter: (a, b) => (a.bloodGroup || "").localeCompare(b.bloodGroup || ""),
-            render: (value) => (
-                <Tooltip title={value || "—"}>
-                    <span>{value || "—"}</span>
-                </Tooltip>
-            ),
+            dataIndex: "bloodGroup",
         },
-
         {
             title: "Status",
-            dataIndex: "isActive",
             key: "isActive",
-            width: 100,
-            ellipsis: true,
-            sorter: (a, b) => Number(a.isActive) - Number(b.isActive),
-            render: (value) => {
-                const color = value ? "green" : "red";
-                const text = value ? "ACTIVE" : "INACTIVE";
-
-                return (
-                    <Tooltip title={text}>
-                        <Tag color={color}>{text}</Tag>
-                    </Tooltip>
-                );
-            },
+            dataIndex: "isActive",
+            render: (v) =>
+                v ? <Tag color="green">ACTIVE</Tag> : <Tag color="red">INACTIVE</Tag>,
         },
-
         {
             title: "Created On",
-            dataIndex: "createdAt",
             key: "createdAt",
-            width: 140,
-            ellipsis: true,
-            sorter: (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
-            render: (value) => {
-                const date = dayjs(value).format("DD MMM YYYY");
-                return (
-                    <Tooltip title={date}>
-                        <span>{date}</span>
-                    </Tooltip>
-                );
-            },
+            dataIndex: "createdAt",
+            render: (v) => dayjs(v).format("DD MMM YYYY"),
         },
-
-        {
-            title: "Updated On",
-            dataIndex: "updatedAt",
-            key: "updatedAt",
-            width: 140,
-            ellipsis: true,
-            sorter: (a, b) => new Date(a.updatedAt) - new Date(b.updatedAt),
-            render: (value) => {
-                const date = dayjs(value).format("DD MMM YYYY");
-                return (
-                    <Tooltip title={date}>
-                        <span>{date}</span>
-                    </Tooltip>
-                );
-            },
-        },
-
         {
             title: "Actions",
             key: "actions",
-            width: 130,
             fixed: "right",
-            render: (_, record) => (
+            render: (_, r) => (
                 <Space>
-                    <Tooltip title="View">
-                        <Button
-                            type="link"
-                            icon={<EyeOutlined />}
-                            onClick={() => navigate(`/view-patitent/${record._id}`)}
-                        />
-                    </Tooltip>
-
-                    <Tooltip title="Edit">
-                        <Button
-                            type="link"
-                            icon={<EditOutlined />}
-                            onClick={() => navigate(`/add-edit-patitent/${record._id}`)}
-                        />
-                    </Tooltip>
-
+                    <Button
+                        type="link"
+                        icon={<EyeOutlined />}
+                        onClick={() => navigate(`/view-patitent/${r._id}`)}
+                    />
+                    <Button
+                        type="link"
+                        icon={<EditOutlined />}
+                        onClick={() => navigate(`/add-edit-patitent/${r._id}`)}
+                    />
                     <Popconfirm
                         title="Delete patient?"
-                        okText="Yes"
-                        cancelText="No"
-                        onConfirm={() => handleDelete(record._id)}
+                        onConfirm={() => handleDelete(r._id)}
                     >
-                        <Tooltip title="Delete">
-                            <Button danger type="link" icon={<DeleteOutlined />} />
-                        </Tooltip>
+                        <Button danger type="link" icon={<DeleteOutlined />} />
                     </Popconfirm>
                 </Space>
             ),
         },
     ];
 
+    const filteredColumns = allColumns.filter(
+        (col) =>
+            selectedColumns.includes(col.key) || col.key === "actions"
+    );
+
+    const columnMenu = (
+        <div className="column-filter-menu">
+            <div className="column-filter-grid">
+                {allColumns
+                    .filter((c) => c.key !== "actions")
+                    .map((col) => (
+                        <div key={col.key} className="column-filter-item">
+                            <Checkbox
+                                checked={selectedColumns.includes(col.key)}
+                                onChange={(e) => {
+                                    if (e.target.checked) {
+                                        setSelectedColumns([...selectedColumns, col.key]);
+                                    } else {
+                                        setSelectedColumns(
+                                            selectedColumns.filter((c) => c !== col.key)
+                                        );
+                                    }
+                                }}
+                            >
+                                {col.title}
+                            </Checkbox>
+                        </div>
+                    ))}
+            </div>
+
+            <div className="column-filter-divider" />
+
+            <Button
+                type="link"
+                style={{ padding: 0 }}
+                onClick={() => setSelectedColumns(DEFAULT_PATIENT_COLUMNS)}
+            >
+                Reset to default
+            </Button>
+        </div>
+    );
 
 
     return (
         <>
-            <div>
-                {/* Header Row */}
-                <Breadcrumbs
-                    title="Patitent List"
-                    showBack={true}
-                    backTo="/doctors"
-                    items={[
-                        { label: "Doctors", href: "/doctors" },
-                    ]}
-                />
-                <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
-                    <Space style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", width: "100%" }}>
-                        <Input.Search
-                            placeholder="Search patients..."
-                            enterButton
-                            allowClear
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            onSearch={handleSearch}
-                            style={{ width: 300 }}
-                        />
+            <Breadcrumbs title="Patient List" />
 
-                        <Button
-                            type="primary"
-                            icon={<PlusOutlined />}
-                            className="btn"
-                            onClick={() => navigate("/add-edit-patitent")}
-                        >
+            <div className="serachbar-bread">
+                <Space>
+                    <Search
+                        placeholder="Search patient"
+                        onSearch={(v) => {
+                            setSearchText(v);
+                            loadPatients(1, v);
+                        }}
+                        allowClear
+                        style={{ width: 280 }}
+                    />
+
+                    <Button
+                        icon={<ReloadOutlined />}
+                        onClick={() => {
+                            setSearchText("");
+                            loadPatients(1, "");
+                        }}
+                    />
+
+                    <RangePicker
+                        onChange={(dates) => {
+                            dispatch(
+                                fetchPatients({
+                                    page: 1,
+                                    limit: 10,
+                                    search: searchText,
+                                    startDate: dates?.[0]?.toISOString(),
+                                    endDate: dates?.[1]?.toISOString(),
+                                })
+                            );
+                        }}
+                    />
+
+                    <Dropdown dropdownRender={() => columnMenu} trigger={["click"]}>
+                        <Button className="column-btn" icon={<FilterOutlined />}></Button>
+                    </Dropdown>
+
+                    <Link to="/add-edit-patitent">
+                        <Button type="primary" className="btn" icon={<PlusOutlined />}>
                             Add Patient
                         </Button>
-                    </Space>
-                </div>
-
-                {/* Patient Table */}
+                    </Link>
+                </Space>
             </div>
 
-            <div className="table-scroll-container">
-                <Table
-                    className="fixed-pagination"
-                    rowKey={(record) => record._id}
-                    columns={columns}
-                    dataSource={patients}
-                    loading={loading}
-                    style={{ textAlign: "left" }}
-                    pagination={{
-                        current: page,
-                        pageSize: limit,
-                        total,
-                        onChange: (p) => loadPatients(p, search),
-                    }}
-                />
-            </div>
+            <Table
+                rowKey="_id"
+                columns={filteredColumns}
+                dataSource={patients}
+                loading={loading}
+                pagination={{
+                    current: page,
+                    pageSize: limit,
+                    total,
+                    onChange: (p) => loadPatients(p, searchText),
+                }}
+            />
         </>
     );
 };

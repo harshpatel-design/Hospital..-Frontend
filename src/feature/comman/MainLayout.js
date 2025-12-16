@@ -67,11 +67,18 @@ export default function MainLayout() {
             <Layout className="layout-body">
 
                 {/* SIDEBAR */}
-                <Sider collapsed={collapsed} width={260} collapsedWidth={75} trigger={null} className="sidebar">
+                <Sider collapsed={collapsed} width={240} collapsedWidth={75} trigger={null} className="sidebar">
 
                     {/* Toggle Button */}
-                    <div className="sidebar-toggle-right" onClick={() => setCollapsed(!collapsed)}>
-                        {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                    <div className={`sidebar ${collapsed ? "collapsed" : ""}`}>
+                        <div
+                            className="sidebar-toggle-right"
+                            onClick={() => setCollapsed(!collapsed)}
+                        >
+                            {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                        </div>
+
+                        {/* sidebar content */}
                     </div>
 
                     {/* 👉 SEPARATE COMPONENT HERE */}
@@ -81,9 +88,9 @@ export default function MainLayout() {
 
                 {/* MAIN CONTENT */}
                 <Content className={`content ${collapsed ? "collapsed" : ""}`}>
-                    <div style={{ padding: 21, paddingLeft: 21, paddingTop: 10, fontSize: "16px", marginTop: 70 }}>
-                        <Outlet /> {/* Renders pages */}
-                    </div>
+
+                    <Outlet /> {/* Renders pages */}
+
                 </Content>
 
             </Layout>

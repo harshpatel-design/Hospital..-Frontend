@@ -17,7 +17,7 @@ export default function Breadcrumbs({
     };
 
     return (
-        <div style={{ padding: "8px 12px", marginBottom:8, borderBottom:"1px solid #e0e0e0" }}>
+        <div style={{ padding: "8px", marginBottom: 8, borderBottom: "1px solid #e0e0e0", width: "100%" }}>
 
             {/* Title Row */}
             {title && (
@@ -33,7 +33,7 @@ export default function Breadcrumbs({
                         <Breadcrumb.Item>
                             <span
                                 onClick={handleBack}
-                                style={{ 
+                                style={{
                                     cursor: "pointer",
                                     display: "flex",
                                     alignItems: "center",

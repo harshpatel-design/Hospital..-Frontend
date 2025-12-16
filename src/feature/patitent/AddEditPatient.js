@@ -130,9 +130,6 @@ export function AddEditPatient() {
         try {
             const payload = { ...values };
 
-            /* --------------------------------------------------
-             1️⃣ Convert all date fields safely
-            -------------------------------------------------- */
             if (payload.dob) payload.dob = payload.dob.toISOString();
 
             if (payload.opd?.lastVisit)
@@ -144,25 +141,14 @@ export function AddEditPatient() {
             if (payload.ipd?.dischargeDate)
                 payload.ipd.dischargeDate = payload.ipd.dischargeDate.toISOString();
 
-
-            /* --------------------------------------------------
-             2️⃣ Remove empty IPD dates (Joi safe)
-            -------------------------------------------------- */
             if (payload.ipd) {
                 if (!payload.ipd.admissionDate) delete payload.ipd.admissionDate;
                 if (!payload.ipd.dischargeDate) delete payload.ipd.dischargeDate;
             }
 
-            /* --------------------------------------------------
-             3️⃣ Remove empty doctor fields
-            -------------------------------------------------- */
             if (payload.opd && !payload.opd.doctor) delete payload.opd.doctor;
             if (payload.ipd && !payload.ipd.doctor) delete payload.ipd.doctor;
 
-
-            /* --------------------------------------------------
-             4️⃣ Convert nested objects to JSON strings
-            -------------------------------------------------- */
             Object.keys(payload).forEach((key) => {
                 if (typeof payload[key] === "object" && payload[key] !== null) {
                     payload[key] = JSON.stringify(payload[key]);
@@ -170,9 +156,6 @@ export function AddEditPatient() {
             });
 
 
-            /* --------------------------------------------------
-             5️⃣ API CALL
-            -------------------------------------------------- */
             let res;
 
             if (isEdit) {
@@ -182,9 +165,6 @@ export function AddEditPatient() {
             }
 
 
-            /* --------------------------------------------------
-             6️⃣ BACKEND ERROR CHECK (very important)
-            -------------------------------------------------- */
             if (!res || res.success === false || res.details) {
 
                 const msg = Array.isArray(res?.details)
@@ -201,20 +181,12 @@ export function AddEditPatient() {
             }
 
 
-            /* --------------------------------------------------
-             7️⃣ SUCCESS
-            -------------------------------------------------- */
             message.success(
                 res.message || (isEdit ? "Patient updated successfully" : "Patient created successfully")
             );
 
             navigate("/patitent-onboarding");
-
-
         } catch (err) {
-            /* --------------------------------------------------
-             8️⃣ Catch-unexpected (network/server crash)
-            -------------------------------------------------- */
             let errorMsg = "";
 
             if (Array.isArray(err?.response?.data?.details)) {
@@ -235,6 +207,8 @@ export function AddEditPatient() {
             });
         }
     };
+
+    console.log("doctorNames", doctorNames);
 
 
     return (
@@ -290,7 +264,6 @@ export function AddEditPatient() {
                                 <Form.Item
                                     name="dob"
                                     label="Date of Birth"
-                                    rules={[{ required: true, message: "Please select date of birth" }]}
                                 >
                                     <DatePicker placeholder="Select DOB" style={{ width: "100%" }} />
                                 </Form.Item>
@@ -436,6 +409,7 @@ export function AddEditPatient() {
                                         <Option value="opd">OPD</Option>
                                         <Option value="ipd">IPD</Option>
                                         <Option value="emergency">Emergency</Option>
+                                        <Option value="appointment">Appointment</Option>
                                     </Select>
                                 </Form.Item>
                             </Col>
@@ -446,6 +420,14 @@ export function AddEditPatient() {
                     {caseType === "opd" && (
                         <Card title="OPD Details" style={{ marginTop: 20 }}>
                             <Row gutter={16}>
+                                <Col span={8}>
+                                    <Form.Item name="case" label="Case" rules={[{ required: true }]}>
+                                        <Select placeholder="Select Old / New">
+                                            <Option value="old">Old</Option>
+                                            <Option value="new">New</Option>
+                                        </Select>
+                                    </Form.Item>
+                                </Col>
                                 <Col span={8}>
                                     <Form.Item
                                         name={["opd", "doctor"]}
@@ -465,15 +447,13 @@ export function AddEditPatient() {
                                             }}
                                         >
                                             {doctorNames.map((d) => (
-                                                <Select.Option key={d.id} value={d.id}>
+                                                <Select.Option key={d._id} value={d._id}>
                                                     {d.name}
                                                 </Select.Option>
                                             ))}
                                         </Select>
                                     </Form.Item>
                                 </Col>
-
-
 
                                 <Col span={8}>
                                     <Form.Item name={["opd", "visitReason"]} label="Visit Reason">
@@ -551,18 +531,6 @@ export function AddEditPatient() {
                                         <DatePicker style={{ width: "100%" }} placeholder="Select admission date" />
                                     </Form.Item>
                                 </Col>
-
-                                <Col span={8}>
-                                    <Form.Item name={["ipd", "dischargeDate"]} label="Discharge Date">
-                                        <DatePicker style={{ width: "100%" }} placeholder="Select discharge date" />
-                                    </Form.Item>
-                                </Col>
-
-                                <Col span={24}>
-                                    <Form.Item name={["ipd", "dischargeSummary"]} label="Discharge Summary">
-                                        <Input.TextArea placeholder="Enter summary" rows={3} />
-                                    </Form.Item>
-                                </Col>
                             </Row>
                         </Card>
                     )}
@@ -608,7 +576,7 @@ export function AddEditPatient() {
                             Cancel
                         </Button>
 
-                        <Button type="primary" htmlType="submit" style={{background:"#001a33"}}>
+                        <Button type="primary" htmlType="submit" style={{ background: "#001a33" }}>
                             {isEdit ? "Update Patient" : "Add Patient"}
                         </Button>
                     </div>
